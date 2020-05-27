@@ -5,6 +5,12 @@
  * LICENSE file in the root directory of this source tree.
  */
 import { Options } from "./Options.ts";
+interface Timer {
+    hasRef(): boolean;
+    ref(): this;
+    refresh(): this;
+    unref(): this;
+}
 export class Lockfile {
     constructor(filename: string, options: Options) {
         this.filename = filename;
@@ -22,7 +28,7 @@ export class Lockfile {
     private filetime: "mtime" | "ctime";
     private filename: string;
     private options: Options;
-    private refreshLockTimer!: NodeJS.Timeout;
+    private refreshLockTimer!: Timer;
     private _locked = false;
     private stale: number;
     public get locked(): boolean {

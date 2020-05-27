@@ -127,8 +127,7 @@ export class Buffer extends Uint8Array {
         return 0;
     }
     static isArrayBuffer(value: unknown): value is ArrayBuffer {
-        return (value instanceof ArrayBuffer ||
-            toString.call(value) === "[object ArrayBuffer]");
+        return (value instanceof ArrayBuffer || String(value) === "[object ArrayBuffer]");
     }
     static assertSize(size: number): void {
         if (typeof size !== "number") {
