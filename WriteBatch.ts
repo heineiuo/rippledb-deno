@@ -10,7 +10,7 @@ import Slice from "./Slice.ts";
 import MemTable from "./MemTable.ts";
 import LogRecord from "./LogRecord.ts";
 import { SequenceNumber, EntryRequireType, ValueType } from "./Format.ts";
-import { decodeFixed64, encodeFixed32, decodeFixed32 } from "./Coding.ts";
+import { decodeFixed64, encodeFixed32, decodeFixed32, encodeFixed64, } from "./Coding.ts";
 export class WriteBatchInternal {
     // WriteBatch header has an 8-byte sequence number followed by a 4-byte count.
     static kHeader = 12;
@@ -18,11 +18,11 @@ export class WriteBatchInternal {
         return batch.buffers.reduce((size, buf) => size + buf.length, 0);
     }
     static insert(batch: WriteBatch, mem: MemTable): void {
-        const nextSequence = WriteBatchInternal.getSequence(batch);
+        let nextSequence = WriteBatchInternal.getSequence(batch);
         for (const update of batch.iterator()) {
             const { type, key, value } = update;
             mem.add(nextSequence, type, key, value);
-            nextSequence.value += 1;
+            nextSequence += 1n;
         }
     }
     static getContents(batch: WriteBatch): Buffer {
@@ -34,11 +34,11 @@ export class WriteBatchInternal {
         batch.buffers = [contents.slice(this.kHeader)];
     }
     // sequence must be lastSequence + 1
-    static setSequence(batch: WriteBatch, sequence: number): void {
-        batch.head.fillBuffer(new SequenceNumber(sequence).toFixed64Buffer(), 0, 7);
+    static setSequence(batch: WriteBatch, sequence: SequenceNumber): void {
+        batch.head.fillBuffer(encodeFixed64(sequence), 0, 7);
     }
     static getSequence(batch: WriteBatch): SequenceNumber {
-        return new SequenceNumber(decodeFixed64(batch.head.slice(0, 8)));
+        return decodeFixed64(batch.head.slice(0, 8));
     }
     static setCount(batch: WriteBatch, count: number): void {
         batch.head.fillBuffer(encodeFixed32(count), 8, 11);

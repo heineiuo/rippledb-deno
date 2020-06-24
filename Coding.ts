@@ -16,10 +16,9 @@ export function encodeFixed64(value: number | bigint): Buffer {
     buf.writeBigUInt64LE(bigIntValue < kFixed64MaxValue ? bigIntValue : kFixed64MaxValue);
     return buf;
 }
-export function decodeFixed64(buf: Buffer): number {
+export function decodeFixed64(buf: Buffer): bigint {
     // or BigInt(new BigUint64Array(bufferToArrayBuffer(buf)).toString())
-    const b = buf.readBigUInt64LE();
-    return Number(b);
+    return buf.readBigUInt64LE();
 }
 export function encodeFixed32(value: number): Buffer {
     const buf = Buffer.alloc(4);

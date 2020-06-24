@@ -16,7 +16,7 @@ export default class VersionEdit {
     private _logNumber?: number;
     private _prevLogNumber?: number;
     private _lastLogNumber?: number;
-    private _lastSequence?: number;
+    private _lastSequence?: bigint;
     private _nextFileNumber?: number;
     private _hasComparator?: boolean;
     private _hasLogNumber?: boolean;
@@ -24,7 +24,7 @@ export default class VersionEdit {
     private _hasNextFileNumber?: boolean;
     private _hasLastSequence?: boolean;
     constructor() {
-        this._comparator = '';
+        this._comparator = "";
         this.deletedFiles = [];
         this.newFiles = [];
         this.compactPointers = [];
@@ -35,10 +35,10 @@ export default class VersionEdit {
         this.compactPointers = [];
         this._logNumber = 0;
         this._prevLogNumber = 0;
-        this._lastSequence = 0;
+        this._lastSequence = 0n;
         // sstable file number
         this._nextFileNumber = 0;
-        this._comparator = '';
+        this._comparator = "";
         this._lastLogNumber = 0;
         this._hasComparator = false;
         this._hasLogNumber = false;
@@ -74,12 +74,12 @@ export default class VersionEdit {
     get nextFileNumber(): number {
         return this._nextFileNumber || 0;
     }
-    set lastSequence(value: number) {
+    set lastSequence(value: bigint) {
         this._lastSequence = value;
         this._hasLastSequence = true;
     }
-    get lastSequence(): number {
-        return this._lastSequence || 0;
+    get lastSequence(): bigint {
+        return this._lastSequence || 0n;
     }
     get hasComparator(): boolean {
         return this._hasComparator || false;

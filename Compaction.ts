@@ -10,7 +10,7 @@ import VersionEdit from "./VersionEdit.ts";
 import { Options } from "./Options.ts";
 import Slice from "./Slice.ts";
 import SSTableBuilder from "./SSTableBuilder.ts";
-import { Config, InternalKey } from "./Format.ts";
+import { Config, InternalKey, SequenceNumber } from "./Format.ts";
 import { FileHandle } from "./Env.ts";
 export default class Compaction {
     static targetFileSize(options: Options): number {
@@ -161,14 +161,14 @@ export interface CompactionStateOutput {
 }
 export class CompactionState {
     public outputs: CompactionStateOutput[] = [];
-    public smallestSnapshot: number;
+    public smallestSnapshot: SequenceNumber;
     public compaction: Compaction;
     public outfile!: FileHandle;
     public builder!: SSTableBuilder;
     public totalBytes: number;
     constructor(c: Compaction) {
         this.compaction = c;
-        this.smallestSnapshot = 0;
+        this.smallestSnapshot = 0n;
         this.totalBytes = 0;
     }
     public currentOutput(): CompactionStateOutput {

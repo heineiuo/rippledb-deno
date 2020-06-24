@@ -305,7 +305,7 @@ export default class Version {
             // Push to next level if there is no overlap in next level,
             // and the #bytes overlapping in the level after that are limited.
             const start = new InternalKey(minUserKey, InternalKey.kMaxSequenceNumber, kValueTypeForSeek);
-            const limit = new InternalKey(maxUserKey, new SequenceNumber(0), ValueType.kTypeValue);
+            const limit = new InternalKey(maxUserKey, 0n, ValueType.kTypeValue);
             let overlaps = [] as FileMetaData[];
             while (level < Config.kMaxMemCompactLevel) {
                 if (this.overlapInLevel(level + 1, minUserKey, maxUserKey)) {

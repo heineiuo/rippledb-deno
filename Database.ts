@@ -59,7 +59,7 @@ export default class Database {
         this._internalKeyComparator = new InternalKeyComparator(new BytewiseComparator());
         this._dbpath = dbpath;
         // this._memtable = new MemTable(this._internalKeyComparator)
-        this._sn = new SequenceNumber(0);
+        this._sn = 0n;
         this.pendingOutputs = new Set();
         this._stats = Array.from({ length: Config.kNumLevels }, () => new CompactionStats());
         options.comparator = this._internalKeyComparator;
@@ -119,7 +119,7 @@ export default class Database {
         edit.comparator = this._internalKeyComparator.userComparator.getName();
         edit.logNumber = 0;
         edit.nextFileNumber = 2;
-        edit.lastSequence = 0;
+        edit.lastSequence = 0n;
         const writer = new LogWriter(await this._options.env.open(getManifestFilename(this._dbpath, 1), "a"));
         await writer.addRecord(VersionEditRecord.add(edit));
         await writer.close();
@@ -191,7 +191,7 @@ export default class Database {
         if (typeof versionSetRecoverResult.saveManifest === "boolean") {
             result.saveManifest = versionSetRecoverResult.saveManifest;
         }
-        const maxSequence = new SequenceNumber(0);
+        const maxSequenceWrapper = { sequence: 0n };
         // Recover from all newer log files than the ones named in the
         // descriptor (new log files may have been added by the previous
         // incarnation without registering them in the descriptor).
@@ -227,7 +227,7 @@ export default class Database {
         // Recover in the order in which the logs were generated
         logs = logs.sort();
         for (let i = 0; i < logs.length; i++) {
-            const result2: RecoverLogFileResult = await this.recoverLogFile(logs[i], i === logs.length - 1, edit, maxSequence);
+            const result2: RecoverLogFileResult = await this.recoverLogFile(logs[i], i === logs.length - 1, edit, maxSequenceWrapper);
             if (typeof result2.saveManifest === "boolean") {
                 result.saveManifest = result2.saveManifest;
             }
@@ -236,12 +236,14 @@ export default class Database {
             // update the file number allocation counter in VersionSet.
             this._versionSet.markFileNumberUsed(logs[i]);
         }
-        if (this._versionSet.lastSequence < maxSequence.value) {
-            this._versionSet.lastSequence = maxSequence.value;
+        if (this._versionSet.lastSequence < maxSequenceWrapper.sequence) {
+            this._versionSet.lastSequence = maxSequenceWrapper.sequence;
         }
         return result;
     }
-    private async recoverLogFile(logNumber: number, isLastLog: boolean, edit: VersionEdit, maxSequence: SequenceNumber): Promise<RecoverLogFileResult> {
+    private async recoverLogFile(logNumber: number, isLastLog: boolean, edit: VersionEdit, maxSequenceWrapper: {
+        sequence: SequenceNumber;
+    }): Promise<RecoverLogFileResult> {
         const result = {} as RecoverLogFileResult;
         let status = new Status();
         // Open the log file
@@ -262,11 +264,12 @@ export default class Database {
                 mem.ref();
             }
             WriteBatchInternal.insert(batch, mem);
-            const lastSeq = WriteBatchInternal.getSequence(batch).value +
-                WriteBatchInternal.getCount(batch) -
-                1;
-            if (lastSeq > maxSequence.value) {
-                maxSequence.value = lastSeq;
+            const lastSeq = WriteBatchInternal.getSequence(batch) +
+                BigInt(WriteBatchInternal.getCount(batch)) -
+                1n;
+            if (lastSeq > maxSequenceWrapper.sequence) {
+                // TODO should not mutate argument
+                maxSequenceWrapper.sequence = lastSeq;
             }
             if (mem.size > this._options.writeBufferSize) {
                 compactions++;
@@ -321,8 +324,8 @@ export default class Database {
         if (!this._ok)
             await this.ok();
         const sequence = options.snapshot
-            ? new Snapshot(options.snapshot).sequenceNumber
-            : new SequenceNumber(this._versionSet.lastSequence);
+            ? options.snapshot.sequenceNumber
+            : this._versionSet.lastSequence;
         const iteratorOptions: Omit<Required<IteratorOptions>, "snapshot"> = {
             ...defaultIteratorOptions,
             ...options,
@@ -404,8 +407,8 @@ export default class Database {
             await this.ok();
         const slicedUserKey = new Slice(userKey);
         const sequence = options.snapshot
-            ? new Snapshot(options.snapshot).sequenceNumber
-            : new SequenceNumber(this._versionSet.lastSequence);
+            ? options.snapshot.sequenceNumber
+            : this._versionSet.lastSequence;
         const lookupKey = new LookupKey(slicedUserKey, sequence);
         const current = this._versionSet.current;
         this._memtable.ref();
@@ -476,7 +479,7 @@ export default class Database {
         return this.write(writeOptions, batch);
     }
     public getSnapshot(): Snapshot {
-        return this._snapshots.insert(new SequenceNumber(this._versionSet.lastSequence));
+        return this._snapshots.insert(this._versionSet.lastSequence);
     }
     public releaseSnapshot(snapshot: Snapshot): void {
         this._snapshots.delete(snapshot);
@@ -499,8 +502,8 @@ export default class Database {
             let lastSequence = this._versionSet.lastSequence;
             const [lastWriter_, batch] = this.buildBatchGroup();
             lastWriter = lastWriter_;
-            WriteBatchInternal.setSequence(batch, lastSequence + 1);
-            lastSequence += WriteBatchInternal.getCount(batch);
+            WriteBatchInternal.setSequence(batch, lastSequence + 1n);
+            lastSequence += BigInt(WriteBatchInternal.getCount(batch));
             await this._log.addRecord(new Slice(WriteBatchInternal.getContents(batch)));
             WriteBatchInternal.insert(batch, this._memtable);
             if (batch === this.tmpBatch)
@@ -736,7 +739,7 @@ export default class Database {
             compact.smallestSnapshot = this._versionSet.lastSequence;
         }
         else {
-            compact.smallestSnapshot = this._snapshots.oldest().sequenceNumber.value;
+            compact.smallestSnapshot = this._snapshots.oldest().sequenceNumber;
         }
         let status = new Status();
         const ikey = new ParsedInternalKey();
@@ -774,12 +777,12 @@ export default class Database {
                     hasCurrentUserKey = true;
                     lastSequenceForKey = InternalKey.kMaxSequenceNumber;
                 }
-                if (lastSequenceForKey.value <= compact.smallestSnapshot) {
+                if (lastSequenceForKey <= compact.smallestSnapshot) {
                     // Hidden by an newer entry for same user key
                     drop = true; // (A)
                 }
                 else if (ikey.valueType === ValueType.kTypeDeletion &&
-                    ikey.sn.value <= compact.smallestSnapshot &&
+                    ikey.sn <= compact.smallestSnapshot &&
                     compact.compaction.isBaseLevelForKey(ikey.userKey)) {
                     // For this user key:
                     // (1) there is no data in higher levels
@@ -1021,7 +1024,7 @@ export default class Database {
             delete manual.end;
         }
         else {
-            endStorage = new InternalKey(end, new SequenceNumber(0), ValueType.kTypeValue);
+            endStorage = new InternalKey(end, 0n, ValueType.kTypeValue);
             manual.end = endStorage;
         }
         while (!manual.done) {

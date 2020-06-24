@@ -9,10 +9,10 @@ import BloomFilter from "./BloomFilter.ts";
 import { Comparator } from "./Comparator.ts";
 import Slice from "./Slice.ts";
 import { Env, FileHandle } from "./Env.ts";
-import { SequenceNumber } from "./Format.ts";
 import Block from "./SSTableBlock.ts";
 import Cache from "./Cache.ts";
 import { Buffer } from "./Buffer.ts";
+import { Snapshot } from "./Snapshot.ts";
 export interface FilterPolicy {
     name(): string;
     keyMayMatch(key: Slice, filter: Slice): boolean;
@@ -28,7 +28,7 @@ export interface ReadOptions {
     // (which must belong to the DB that is being read and which must
     // not have been released).  If "snapshot" is null, use an implicit
     // snapshot of the state at the beginning of this read operation.
-    snapshot?: SequenceNumber;
+    snapshot?: Snapshot;
 }
 export const defaultReadOptions: Omit<Required<ReadOptions>, "snapshot"> = {
     verifyChecksums: false,

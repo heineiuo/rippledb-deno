@@ -9,7 +9,7 @@ import { Buffer } from "./Buffer.ts";
 import { SequenceNumber, ValueType, InternalKeyComparator, LookupKey, Entry, EntryRequireType, InternalKey, } from "./Format.ts";
 import Skiplist from "./Skiplist.ts";
 import Slice from "./Slice.ts";
-import { getLengthPrefixedSlice } from "./Coding.ts";
+import { getLengthPrefixedSlice, encodeFixed64 } from "./Coding.ts";
 export default class MemTable {
     static getValueSlice(key: Slice): Slice | null {
         const internalKeySize = varint.decode(key.buffer);
@@ -82,7 +82,7 @@ export default class MemTable {
          * 2. Internal key: key --- type(1Byte)
          * 3. User key: key
          */
-        const sequenceBuf = sequence.toFixed64Buffer();
+        const sequenceBuf = encodeFixed64(sequence);
         sequenceBuf.fillInt(valueType, 7, 8);
         const buf = new Slice(Buffer.concat([
             internalKeySizeBuf,

@@ -12,6 +12,7 @@ import { InternalKey, VersionEditTag } from "./Format.ts";
 import VersionEdit from "./VersionEdit.ts";
 import { FileMetaData, NewFile } from "./VersionFormat.ts";
 import { createHexStringFromDecimal } from "./LogFormat.ts";
+import { encodeFixed64, decodeFixed64 } from "./Coding.ts";
 export default class VersionEditRecord {
     static from(buf: Buffer): VersionEditRecord {
         const length = buf.readUInt16BE(4);
@@ -42,7 +43,7 @@ export default class VersionEditRecord {
         }
         if (edit.hasLastSequence) {
             bufList.push(Buffer.fromArrayLike([VersionEditTag.kLastSequence]));
-            bufList.push(Buffer.fromArrayLike(varint.encode(edit.lastSequence)));
+            bufList.push(encodeFixed64(edit.lastSequence));
         }
         edit.compactPointers.forEach((pointer: {
             level: number;
@@ -107,8 +108,8 @@ export default class VersionEditRecord {
                 continue;
             }
             else if (type === VersionEditTag.kLastSequence) {
-                const lastSequence = varint.decode(opBuffer.slice(index));
-                index += varint.decode.bytes;
+                const lastSequence = decodeFixed64(opBuffer.slice(index));
+                index += 8;
                 edit.lastSequence = lastSequence;
                 continue;
             }
