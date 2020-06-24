@@ -68,6 +68,7 @@ export default class Database {
         this._tableCache = new TableCache(dbpath, this._options, getTableCacheSize(this._options));
         this._versionSet = new VersionSet(this._dbpath, this._options, this._tableCache, this._internalKeyComparator);
         this._status = new Status(this.recoverWrapper());
+        this._snapshots = new SnapshotList();
     }
     private writers = new WriterQueue();
     private tmpBatch = new WriteBatch();
@@ -85,7 +86,7 @@ export default class Database {
     private _manualCompaction!: ManualCompaction | null;
     private _bgError!: Status;
     private pendingOutputs: Set<number>;
-    private snapshots!: SnapshotList;
+    private _snapshots: SnapshotList;
     private _stats: CompactionStats[];
     private _options: Options;
     private _tableCache: TableCache;
@@ -474,6 +475,12 @@ export default class Database {
         const writeOptions = { ...defaultWriteOptions, ...options };
         return this.write(writeOptions, batch);
     }
+    public getSnapshot(): Snapshot {
+        return this._snapshots.insert(new SequenceNumber(this._versionSet.lastSequence));
+    }
+    public releaseSnapshot(snapshot: Snapshot): void {
+        this._snapshots.delete(snapshot);
+    }
     private async write(options: Required<WriteOptions>, batch?: WriteBatch): Promise<void> {
         if (!this._ok)
             await this.ok();
@@ -725,11 +732,11 @@ export default class Database {
         assert(this._versionSet.getNumLevelFiles(compact.compaction.level) > 0);
         assert(!compact.builder);
         assert(!compact.outfile);
-        if (!this.snapshots) {
+        if (this._snapshots.isEmpty()) {
             compact.smallestSnapshot = this._versionSet.lastSequence;
         }
         else {
-            compact.smallestSnapshot = this.snapshots.oldest().sequenceNumber.value;
+            compact.smallestSnapshot = this._snapshots.oldest().sequenceNumber.value;
         }
         let status = new Status();
         const ikey = new ParsedInternalKey();
