@@ -4,8 +4,9 @@
  * This source code is licensed under the MIT license found in the
  * LICENSE file in the root directory of this source tree.
  */
-import { path } from "./DBHelper.ts";
+import { path, assert } from "./DBHelper.ts";
 import { FileType } from "./Format.ts";
+import { Env } from "./Env.ts";
 function numberToString(num: number): string {
     let str = String(num);
     while (str.length < 6) {
@@ -34,14 +35,20 @@ export function getInfoLogFilename(dbpath: string): string {
 export function getOldInfoLogFilename(dbpath: string): string {
     return path.resolve(dbpath, `LOG.old`);
 }
-export class InternalFile {
-    isInternalFile = true;
-    filename!: string;
-    number!: number;
-    type!: FileType;
+export function getTempFilename(dbpath: string, number: number): string {
+    assert(number > 0);
+    return path.resolve(dbpath, `${number}.dbtmp`);
 }
+type InternalFile = {
+    isInternalFile: boolean;
+    filename: string;
+    number: number;
+    type: FileType;
+};
 export function parseFilename(filename: string): InternalFile {
-    const internalFile = new InternalFile();
+    const internalFile = {
+        isInternalFile: true,
+    } as InternalFile;
     if (filename === "CURRENT") {
         internalFile.number = 0;
         internalFile.type = FileType.kCurrentFile;
@@ -86,4 +93,24 @@ export function parseFilename(filename: string): InternalFile {
         internalFile.number = num;
     }
     return internalFile;
+}
+export async function setCurrentFile(env: Env, dbpath: string, manifestNumber: number): Promise<void | Error> {
+    const filename = getManifestFilename(dbpath, manifestNumber);
+    assert(filename.startsWith(path.resolve(dbpath + "/")));
+    const content = filename.substr(path.resolve(dbpath + "/").length + 1);
+    const tempFilename = getTempFilename(dbpath, manifestNumber);
+    let error: void | Error;
+    try {
+        await env.writeFile(tempFilename, content + "\n");
+    }
+    catch (e) {
+        error = e;
+    }
+    if (!error) {
+        await env.rename(tempFilename, getCurrentFilename(dbpath));
+    }
+    else {
+        await env.unlink(tempFilename);
+    }
+    return error;
 }

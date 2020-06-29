@@ -201,4 +201,5 @@ export interface Env {
     unlinkSync(filename: string): void;
     fstat(fd: FileHandle): Promise<Stats>;
     readdir(dbpath: string): Promise<Dirent[]>;
+    getFileSize(filename: string): Promise<number>;
 }

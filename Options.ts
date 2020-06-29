@@ -135,6 +135,6 @@ export const defaultOptions: Omit<Required<Options>, "env"> = {
     infoLog: null,
     async log(message: string): Promise<void> {
         if (this.infoLog)
-            await this.infoLog.appendFile(message);
+            await this.infoLog.appendFile(message + "\n");
     },
 };

@@ -18,7 +18,7 @@ import VersionEdit from "./VersionEdit.ts";
 import { Config, InternalKeyComparator, InternalKey, Entry } from "./Format.ts";
 import LogWriter from "./LogWriter.ts";
 import Compaction from "./Compaction.ts";
-import { Options } from "./Options.ts";
+import { Options, ReadOptions } from "./Options.ts";
 import { TableCache } from "./SSTableCache.ts";
 import Merger from "./Merger.ts";
 import { decodeFixed64 } from "./Coding.ts";
@@ -563,6 +563,7 @@ export default class VersionSet {
     // inputs(which includes 2 levels) for "currentCompaction".
     public async *makeInputIterator(currentCompaction: Compaction): AsyncIterableIterator<Entry> {
         let num = 0;
+        const options = {} as ReadOptions;
         // Level-0 files have to be merged together.  For other levels,
         // we will make a concatenating iterator per level.
         // TODO(opt): use concatenating iterator for level-0 if there is no overlap
@@ -576,7 +577,7 @@ export default class VersionSet {
                     // currentCompaction.level === 0 && which === 0
                     const files = currentCompaction.inputs[which];
                     for (let i = 0; i < files.length; i++) {
-                        list[num++] = this.tableCache.entryIterator(this._options, files[i].number, files[i].fileSize);
+                        list[num++] = this.tableCache.entryIterator(options, files[i].number, files[i].fileSize);
                     }
                 }
                 else {
@@ -591,10 +592,11 @@ export default class VersionSet {
         yield* merger.iterator();
     }
     private async *levelFileEntryIterator(files: FileMetaData[]): AsyncIterableIterator<Entry> {
+        const options = {} as ReadOptions;
         for (const fileEntry of Version.levelFileNumIterator(this.internalKeyComparator, files)) {
             const fileNumber = decodeFixed64(fileEntry.value.buffer.slice(0, 8));
             const fileSize = decodeFixed64(fileEntry.value.buffer.slice(8));
-            yield* this.tableCache.entryIterator(this._options, Number(fileNumber), Number(fileSize));
+            yield* this.tableCache.entryIterator(options, Number(fileNumber), Number(fileSize));
         }
     }
 }

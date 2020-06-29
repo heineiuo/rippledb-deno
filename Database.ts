@@ -30,6 +30,7 @@ import LogReader from "./LogReader.ts";
 import IteratorMerger from "./Merger.ts";
 import { WriterQueue, Writer } from "./WriterQueue.ts";
 import { Lockfile } from "./Lockfile.ts";
+import { buildTable } from "./Builder.ts";
 // Information for a manual compaction
 interface ManualCompaction {
     level: number;
@@ -894,27 +895,7 @@ export default class Database {
         meta.number = this._versionSet.getNextFileNumber();
         meta.largest = new InternalKey();
         this.pendingOutputs.add(meta.number);
-        this._options.log(`Level-0 table #${meta.number}: started`);
-        const tableFilename = getTableFilename(this._dbpath, meta.number);
-        let status = new Status(this._options.env.open(tableFilename, "a+"));
-        if (!(await status.ok())) {
-            return status;
-        }
-        const builder = new SSTableBuilder(this._options, (await status.promise) as FileHandle);
-        for (const entry of mem.iterator()) {
-            if (!meta.smallest) {
-                meta.smallest = InternalKey.from(entry.key);
-            }
-            meta.largest.decodeFrom(entry.key);
-            await builder.add(entry.key, entry.value);
-        }
-        status = new Status(builder.finish());
-        if (!(await status.ok())) {
-            return status;
-        }
-        meta.fileSize = builder.fileSize;
-        assert(meta.fileSize > 0);
-        this._options.log(`Level-0 table #${meta.number}: ${meta.fileSize} bytes ${(await status.ok()) ? "status ok" : "status error"}`);
+        const status = await buildTable(this._dbpath, this._options.env, this._options, mem.iterator(), meta);
         this.pendingOutputs.delete(meta.number);
         // Note that if file_size is zero, the file has been deleted and
         // should not be added to the manifest.

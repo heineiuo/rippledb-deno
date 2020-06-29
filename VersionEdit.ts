@@ -12,6 +12,7 @@ export default class VersionEdit {
     compactPointers: CompactPointer[];
     deletedFiles: DeletedFile[];
     newFiles: NewFile[];
+    // _comparator: comparator name
     private _comparator: string;
     private _logNumber?: number;
     private _prevLogNumber?: number;

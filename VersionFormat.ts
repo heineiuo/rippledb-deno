@@ -13,12 +13,14 @@ export class FileMetaData {
     allowedSeeks: number;
     fileSize: number;
     number!: number;
-    smallest!: InternalKey;
-    largest!: InternalKey;
+    smallest: InternalKey;
+    largest: InternalKey;
     constructor() {
         this.refs = 0;
         this.allowedSeeks = 1 << 30;
         this.fileSize = 0;
+        this.smallest = new InternalKey();
+        this.largest = new InternalKey();
     }
 }
 export class BySmallestKey {

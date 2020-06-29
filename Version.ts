@@ -9,7 +9,7 @@ import { Buffer } from "./Buffer.ts";
 import Slice from "./Slice.ts";
 import { FileMetaData, BySmallestKey, GetStats } from "./VersionFormat.ts";
 import VersionSet from "./VersionSet.ts";
-import { Config, InternalKey, SequenceNumber, ValueType, InternalKeyComparator, parseInternalKey, ParsedInternalKey, kValueTypeForSeek, LookupKey, } from "./Format.ts";
+import { Config, InternalKey, ValueType, InternalKeyComparator, parseInternalKey, ParsedInternalKey, kValueTypeForSeek, LookupKey, } from "./Format.ts";
 import Compaction from "./Compaction.ts";
 import Status from "./Status.ts";
 import { Comparator } from "./Comparator.ts";

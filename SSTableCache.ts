@@ -84,7 +84,7 @@ export class TableCache {
         }
         return status;
     }
-    async *entryIterator(options: Options, fileNumber: number, fileSize: number): AsyncIterableIterator<Entry> {
+    async *entryIterator(options: ReadOptions, fileNumber: number, fileSize: number): AsyncIterableIterator<Entry> {
         const status = await this.findTable(fileNumber, fileSize);
         if (await status.ok()) {
             const tf = (await status.promise) as TableAndFile;
