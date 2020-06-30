@@ -307,8 +307,7 @@ export default class Database {
             throw this._status.error;
         }
     }
-    // TODO
-    public async destroy(): Promise<void> {
+    public async close(): Promise<void> {
         await this.lockfile.unlock();
         if (this._options.infoLog) {
             await this._options.infoLog.close();
