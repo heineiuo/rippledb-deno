@@ -1,4 +1,4 @@
-// https://github.com/wiedi/node-bitbuffer
+// Rwrite to TypeScript https://github.com/wiedi/node-bitbuffer
 import { Buffer } from "./Buffer.ts";
 export default class BitBuffer {
     /**

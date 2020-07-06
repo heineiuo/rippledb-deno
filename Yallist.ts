@@ -1,3 +1,4 @@
+// Rewrite to TypeScript https://github.com/isaacs/yallist
 export class YallistNode<T = unknown> {
     constructor(value: T, prev: null | YallistNode<T>, next: null | YallistNode<T>, list: Yallist<T>) {
         this.list = list;

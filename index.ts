@@ -5,6 +5,7 @@
  * LICENSE file in the root directory of this source tree.
  */
 export { default as InternalDatabase } from "./Database.ts";
+export { InternalDBRepairer } from "./DBRepairer.ts";
 export { WriteBatch } from "./WriteBatch.ts";
 export { Options, ReadOptions, DatabaseOptions, WriteOptions, IteratorOptions, } from "./Options.ts";
 export { Env } from "./Env.ts";

@@ -1,3 +1,4 @@
+// Rewrite to TypeScript https://github.com/feross/buffer
 export class Buffer extends Uint8Array {
     static kMaxLength = 0x7fffffff;
     static checkInt(buf: Buffer, value: number, offset: number, ext: number, max: number, min: number): void {
