@@ -18,7 +18,7 @@ import SSTableBuilder from "./SSTableBuilder.ts";
 import VersionEdit from "./VersionEdit.ts";
 import LogWriter from "./LogWriter.ts";
 import VersionEditRecord from "./VersionEditRecord.ts";
-import { path } from "./DBHelper.ts";
+import { path, assert } from "./DBHelper.ts";
 type TableInfo = {
     meta: FileMetaData;
     maxSequence: SequenceNumber;
@@ -208,9 +208,9 @@ Some data may have been lost.
                     tableInfo.maxSequence = parsed.sn;
                 }
             }
+            assert(tableInfo.meta.smallest.length > 0);
         }
         catch (e) {
-            console.error(e);
             error = e;
         }
         this._options.log(`Table #${tableInfo.meta.number}: ${counter} entries ${error ? error.message : "success"}`);
@@ -218,56 +218,60 @@ Some data may have been lost.
             this._tableInfos.push(tableInfo);
         }
         else {
-            this.repairTable(tableFilename, tableInfo); // RepairTable archives input file.
+            await this.repairTable(tableFilename, tableInfo); // RepairTable archives input file.
         }
     }
     async repairTable(srcTableFilename: string, tableInfo: TableInfo): Promise<void | Error> {
         // We will copy src contents to a new table and then rename the
         // new table over the source.
         const destTableFilename = getTableFilename(this._dbpath, this._nextFileNumber++);
-        const fd = await this._env.open(destTableFilename, "a+");
-        const tableBuilder = new SSTableBuilder(this._options, fd);
-        const options: ReadOptions = {};
-        let counter = 0;
-        for await (const entry of this._tableCache.entryIterator(options, tableInfo.meta.number, tableInfo.meta.fileSize)) {
-            await tableBuilder.add(entry.key, entry.value);
-            counter++;
-        }
         let error: Error | void;
         try {
-            await this.archiveFile(srcTableFilename);
-            if (counter === 0) {
-                await tableBuilder.abandon();
+            let counter = 0;
+            const fd = await this._env.open(destTableFilename, "a+");
+            const tableBuilder = new SSTableBuilder(this._options, fd);
+            const options: ReadOptions = {};
+            for await (const entry of this._tableCache.entryIterator(options, tableInfo.meta.number, tableInfo.meta.fileSize)) {
+                await tableBuilder.add(entry.key, entry.value);
+                counter++;
             }
-            else {
-                await tableBuilder.finish();
-                tableInfo.meta.fileSize = tableBuilder.fileSize;
-            }
-        }
-        catch (e) {
-            error = e;
-        }
-        finally {
             try {
-                if (counter > 0 && !error) {
-                    const orig = getTableFilename(this._dbpath, tableInfo.meta.number);
-                    await this._env.rename(destTableFilename, orig);
-                    this._options.log(`Table #${tableInfo.meta.number}: ${counter} entries repaired`);
+                await this.archiveFile(srcTableFilename);
+                if (counter === 0) {
+                    await tableBuilder.abandon();
+                }
+                else {
+                    await tableBuilder.finish();
+                    tableInfo.meta.fileSize = tableBuilder.fileSize;
                 }
             }
             catch (e) {
                 error = e;
             }
             finally {
-                if (error) {
-                    try {
-                        await this._env.unlink(destTableFilename);
+                try {
+                    if (counter > 0 && !error) {
+                        const orig = getTableFilename(this._dbpath, tableInfo.meta.number);
+                        await this._env.rename(destTableFilename, orig);
+                        this._options.log(`Table #${tableInfo.meta.number}: ${counter} entries repaired`);
                     }
-                    catch (e) { }
+                }
+                catch (e) {
+                    error = e;
                 }
             }
         }
-        return error;
+        catch (e) {
+            error = e;
+        }
+        finally {
+            if (error) {
+                try {
+                    await this._env.unlink(destTableFilename);
+                }
+                catch (e) { }
+            }
+        }
     }
     async writeDescriptor(): Promise<void | Error> {
         const tempFilename = getTempFilename(this._dbpath, 1);
